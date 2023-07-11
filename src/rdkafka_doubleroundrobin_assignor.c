@@ -74,64 +74,61 @@ rd_kafka_doubleroundrobin_assignor_assign_cb (rd_kafka_t *rk,
 
         int member_cnt = rd_list_cnt(&eligible_topic->members);
 
-        /// Save right boundary of different consumer.
-        int different_consumers[member_cnt + 1];
-        int recount_member = 1;
-        different_consumers[0] = -1;
+        /// save the begin and end index for each group,  for group 0, begin: group_borders[0], end: group_borders[1].
+        /// [begin, end).
+        int group_borders[member_cnt + 1];
+        int group_count = 0;
 
         /// Save members after deleted replica members.
-        int resorted_member_lists[member_cnt + 1];
-        int resorted_member_lists_pos = 0;
+        int deleted_member_lists[member_cnt + 1];
+        int deleted_member_lists_idx = 0;
 
-        for (int i = 0; i < member_cnt - 1; ++i)
+        /// record the first consumer and group.
+        deleted_member_lists[deleted_member_lists_idx++] = 0;
+        group_borders[group_count++] = 0;
+
+        for (int i = 1; i < member_cnt ; ++i)
         {
-            int status = rd_kafka_str_member_is_replicate(members[i].rkgm_member_id->str, members[i + 1].rkgm_member_id->str);
+            int status = rd_kafka_str_member_is_replicate(members[i].rkgm_member_id->str, members[i-1].rkgm_member_id->str);
             switch (status)
             {
                 case 0:
-                    different_consumers[recount_member++] = resorted_member_lists_pos;
-                    resorted_member_lists[resorted_member_lists_pos++] = i;
+                    group_borders[group_count++] = deleted_member_lists_idx;
+                    deleted_member_lists[deleted_member_lists_idx++] = i;
                     break;
                 case 1:
-                    resorted_member_lists[resorted_member_lists_pos++] = i;
+                    deleted_member_lists[deleted_member_lists_idx++] = i;
                     break;
                 case 2:
                     break;
             }
         }
-        different_consumers[recount_member] = resorted_member_lists_pos;
-        resorted_member_lists[resorted_member_lists_pos++] = member_cnt - 1;
-
-        int next = -1;
+        group_borders[group_count] = deleted_member_lists_idx;
 
         /// This array saves every consumer's size, for example:
         /// non_duplicate_members_pos = {-1, 3, 6, 8}
-        /// group0 = {0, 1, 2, 3} --> size = 4
-        /// group1 = {4, 5, 6} --> size = 3
-        /// group2 = {7, 8} --> size = 2
-        int sizeof_member_group[recount_member];
-        for (int group_id = 0; group_id < recount_member; ++group_id)
+        /// group0 = {0, 2, 4, 6} --> size = 4
+        /// group1 = {8, 10, 12} --> size = 3
+        /// group2 = {14, 16} --> size = 2
+        int sizeof_member_group[group_count];
+        for (int group_idx = 0; group_idx < group_count; ++group_idx)
         {
-            sizeof_member_group[group_id] = different_consumers[group_id + 1] - different_consumers[group_id];
+            sizeof_member_group[group_idx] = group_borders[group_idx + 1] - group_borders[group_idx];
         }
 
-        /// This array saves status in every consumer's attribution, for example:
-        /// next_in_member_group[3] = {3, 1, 0}, means:
-        /// if group0 get a partition, it should be assigned to (3 + 1) % 4 + 0 = 0
-        /// if group1 get a partition, it should be assigned to (1 + 1) % 3 + 0 = 2, and so on.
-        int next_in_member_group[recount_member];
+        /// This array saves the relative position in each group
+        /// ex: a group1 with size 5, next_in_member_group[1]: 0, 1, 2, 3, 4
+        //// similar to 'next' variable for group assignment.
+        int next_in_member_group[group_count];
         memset(next_in_member_group, -1, sizeof(next_in_member_group));
-
+        int next = -1;
         for (int partition = 0; partition < eligible_topic->metadata->partition_cnt; partition++)
         {
-            next = (next + 1) % recount_member;
-            next_in_member_group[next] = (next_in_member_group[next] + 1) % sizeof_member_group[next];
+            next = (next + 1) % group_count;  /// assigned to group
+            next_in_member_group[next] = (next_in_member_group[next] + 1) % sizeof_member_group[next]; /// assigned to a  group member
 
-            /// we create a mapping relationship from position in member group to real member ID, for example:
-            /// group0: 0, 1, 2, 3 --> 0, 1, 2, 3
-            /// group1: 0, 1, 2 --> 4, 5, 6
-            /// group2: 0, 1 --> 7, 8
-            rd_kafka_group_member_t *rkgm = &members[resorted_member_lists[different_consumers[next] + 1 + next_in_member_group[next]]];
+            /// get real member index in "members" array.
+            rd_kafka_group_member_t *rkgm = &members[deleted_member_lists[group_borders[next] + next_in_member_group[next]]];
 
             rd_kafka_dbg(rk, CGRP, "ASSIGN",
                          "doubleroundrobin: Member \"%s\": "
