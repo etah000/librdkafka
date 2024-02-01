@@ -2471,11 +2471,13 @@ rd_kafka_t *rd_kafka_new (rd_kafka_type_t type, rd_kafka_conf_t *app_conf,
                 rd_snprintf(builtin_features, sizeof(builtin_features), "?");
         rd_kafka_dbg(rk, ALL, "INIT",
                      "librdkafka v%s (0x%x) %s initialized "
-                     "(builtin.features %s, %s, debug 0x%x)",
+                     "(builtin.features %s, %s, debug 0x%x) "
+                     "strategy %s",
                      rd_kafka_version_str(), rd_kafka_version(),
                      rk->rk_name,
                      builtin_features, BUILT_WITH,
-                     rk->rk_conf.debug);
+                     rk->rk_conf.debug,
+                     rk->rk_conf.partition_assignment_strategy);
 
         /* Log warnings for deprecated configuration */
         rd_kafka_conf_warn(rk);
