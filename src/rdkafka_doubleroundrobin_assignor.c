@@ -28,6 +28,7 @@
 
 #include "rdkafka_int.h"
 #include "rdkafka_assignor.h"
+#include "rdrand.h"
 
 /**
 * Source: https://github.com/apache/kafka/blob/trunk/clients/src/main/java/org/apache/kafka/clients/consumer/RoundRobinAssignor.java
@@ -122,10 +123,19 @@ rd_kafka_doubleroundrobin_assignor_assign_cb (rd_kafka_t *rk,
         int next_in_member_group[group_count];
         memset(next_in_member_group, -1, sizeof(next_in_member_group));
         int next = -1;
+        int num_unassigned_partition = eligible_topic->metadata->partition_cnt;
+        int num_residual_partition = eligible_topic->metadata->partition_cnt % group_count;
         for (int partition = 0; partition < eligible_topic->metadata->partition_cnt; partition++)
         {
-            next = (next + 1) % group_count;  /// assigned to group
-            next_in_member_group[next] = (next_in_member_group[next] + 1) % sizeof_member_group[next]; /// assigned to a  group member
+            /// assigned to group
+            if (num_unassigned_partition <= num_residual_partition) {
+                next = rd_jitter(0, group_count - 1);
+            }
+            else {
+                next = (next + 1) % group_count;
+            }
+            /// assigned to a group member
+            next_in_member_group[next] = (next_in_member_group[next] + 1) % sizeof_member_group[next];
 
             /// get real member index in "members" array.
             rd_kafka_group_member_t *rkgm = &members[deleted_member_lists[group_borders[next] + next_in_member_group[next]]];
@@ -140,6 +150,8 @@ rd_kafka_doubleroundrobin_assignor_assign_cb (rd_kafka_t *rk,
             rd_kafka_topic_partition_list_add(
                 rkgm->rkgm_assignment,
                 eligible_topic->metadata->topic, partition);
+            
+            num_unassigned_partition--;
         }
     }
     return 0;
