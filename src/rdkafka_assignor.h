@@ -212,7 +212,7 @@ void rd_kafka_assignors_term(rd_kafka_t *rk);
 
 void rd_kafka_group_member_clear(rd_kafka_group_member_t *rkgm);
 
-
+rd_kafka_resp_err_t rd_kafka_doubleroundrobin_assignor_init (rd_kafka_t *rk);
 rd_kafka_resp_err_t rd_kafka_range_assignor_init(rd_kafka_t *rk);
 rd_kafka_resp_err_t rd_kafka_roundrobin_assignor_init(rd_kafka_t *rk);
 rd_kafka_resp_err_t rd_kafka_sticky_assignor_init(rd_kafka_t *rk);

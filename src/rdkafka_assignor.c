@@ -585,6 +585,7 @@ int rd_kafka_assignors_init(rd_kafka_t *rk, char *errstr, size_t errstr_size) {
         /* Initialize builtin assignors (ignore errors) */
         rd_kafka_range_assignor_init(rk);
         rd_kafka_roundrobin_assignor_init(rk);
+        rd_kafka_doubleroundrobin_assignor_init(rk);
         rd_kafka_sticky_assignor_init(rk);
 
         rd_strdupa(&wanted, rk->rk_conf.partition_assignment_strategy);

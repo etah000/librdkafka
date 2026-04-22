@@ -31,6 +31,7 @@ set(
     rdkafka_range_assignor.c
     rdkafka_request.c
     rdkafka_roundrobin_assignor.c
+    rdkafka_doubleroundrobin_assignor.c
     rdkafka_sasl.c
     rdkafka_sasl_plain.c
     rdkafka_sticky_assignor.c

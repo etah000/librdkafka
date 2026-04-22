@@ -1114,7 +1114,7 @@ static const struct rd_kafka_property rd_kafka_properties[] = {
      "Cooperative and non-cooperative (eager) strategies must not be "
      "mixed. "
      "Available strategies: range, roundrobin, cooperative-sticky.",
-     .sdef = "range,roundrobin"},
+     .sdef = "range,roundrobin,doubleroundrobin"},
     {_RK_GLOBAL | _RK_CGRP | _RK_HIGH, "session.timeout.ms", _RK_C_INT,
      _RK(group_session_timeout_ms),
      "Client group session and failure detection timeout. "
